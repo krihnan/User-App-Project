@@ -2,44 +2,44 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCOUNT_ID = "694521942061"            // your AWS account
-        AWS_REGION = "us-west-2"                   // your region
-        ECR_REPO = "user-app"                      // ECR repository name
-        IMAGE_TAG = "${BUILD_NUMBER}"              // you can also use git commit SHA
-        KUBE_NAMESPACE = "default"                 // (or your namespace)
+        AWS_ACCOUNT_ID = "694521942061"
+        AWS_REGION = "us-west-2"
+        ECR_REPO = "user-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        KUBE_NAMESPACE = "default"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // checkout your GitHub repository
-                git branch: 'main', url: 'https://github.com/your-username/User-app-Project.git'
+                git branch: 'main', url: 'https://github.com/krihnan/User-App-Project.git'
             }
         }
 
         stage('Build') {
             steps {
-                // package spring boot app
-                sh './mvnw clean package -DskipTests'
+                bat 'mvnw.cmd clean package -DskipTests'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
-                    sh "docker build -t ${dockerImage} ."
+                    def dockerImage = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
+                    bat "docker build -t ${dockerImage} ."
                 }
             }
         }
 
         stage('Login & Push to ECR') {
             steps {
-                script {
-                    sh """
-                      aws ecr get-login-password --region ${AWS_REGION} | \
-                        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                      docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials'
+                ]]) {
+                    bat """
+                      aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com
+                      docker push %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPO%:%IMAGE_TAG%
                     """
                 }
             }
@@ -48,13 +48,9 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Update the Kubernetes manifest(s) with the new image
-                    sh """
-                      # replace image in deployment manifest
-                      sed -i 's|image:.*|image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}|' kubernetes/backend-deployment.yaml
-
-                      # apply manifests
-                      kubectl apply -f kubernetes/
+                    bat """
+                      powershell -Command "(Get-Content kubernetes\\backend-deployment.yaml) -replace 'image:.*', 'image: %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPO%:%IMAGE_TAG%' | Set-Content kubernetes\\backend-deployment.yaml"
+                      kubectl apply -f kubernetes\\
                     """
                 }
             }
@@ -63,7 +59,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployed ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
+            echo "✅ Deployed %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPO%:%IMAGE_TAG%"
         }
         failure {
             echo "❌ Build or Deployment failed"

@@ -4,6 +4,14 @@ metadata:
   name: mysql-deployment
 spec:
   replicas: 1
+  selector:apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: mysql
+spec:
+  replicas: 1
   selector:
     matchLabels:
       app: mysql
@@ -14,7 +22,25 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: navaneethakrishnan/mysql:latest
+          image: mysql:8
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: root123
+            - name: MYSQL_DATABASE
+              value: userdb
+          ports:
+            - containerPort: 3306
+
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: 694521942061.dkr.ecr.us-west-2.amazonaws.com/mysql-db:8
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: admin

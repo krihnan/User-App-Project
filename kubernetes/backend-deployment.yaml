@@ -2,8 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend-deployment
+  labels:
+    app: backend
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -14,13 +16,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: navaneethakrishnan/user-app:latest
-          env:
-            - name: SPRING_DATASOURCE_URL
-              value: jdbc:mysql://mysql-service:3306/testdb
-            - name: SPRING_DATASOURCE_USERNAME
-              value: root
-            - name: SPRING_DATASOURCE_PASSWORD
-              value: admin
+          image: 694521942061.dkr.ecr.us-west-2.amazonaws.com/user-app:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
